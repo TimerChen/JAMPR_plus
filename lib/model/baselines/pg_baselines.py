@@ -159,6 +159,9 @@ class RolloutBaseline(Baseline):
         self.num_workers = num_workers
         self.verbose = verbose
 
+        # NOTE: FORCELY SET VERBOSE to TRUE!
+        self.verbose = True
+
         self.policy = None
         self.bl_vals = None
         self.bl_epoch = 0
@@ -170,6 +173,7 @@ class RolloutBaseline(Baseline):
         self._clear()
 
     def _update_model(self, policy: Policy, epoch: int):
+        # print("update model!")
         self.bl_epoch = epoch
         self._device = policy.device
         self.policy = copy.deepcopy(policy)

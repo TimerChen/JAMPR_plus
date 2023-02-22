@@ -42,6 +42,8 @@ class RPEnv:
                  inference: bool = False,
                  tour_graph_update_step: int = 1,
                  debug: Union[bool, int] = False,
+                 late_penalty: float=10.,
+                 late_penalty_factor: float=10.,
                  ):
         """
 
@@ -89,6 +91,9 @@ class RPEnv:
             self.check_feasibility = True
         if self.debug_lvl > 2:
             warnings.simplefilter('always', RuntimeWarning)
+
+        self.late_penalty = late_penalty
+        self.late_penalty_factor = late_penalty_factor
 
         self.nbh_sampler = None
         self.bs = None
@@ -154,6 +159,19 @@ class RPEnv:
         self.nbh_edges, self.nbh_weights = None, None
         self.tour_edges, self.tour_weights = None, None
         self._tour_batch_idx = None
+        # print(
+        #     "current!!!!!! max_vehicle_number", self.max_vehicle_number
+        # )
+        self.exceeds_tw = torch.zeros(self.bs, self.max_concurrent_vehicles,
+                                      dtype=torch.bool, device=self.device)
+        self.late_rate = torch.zeros(self.bs, self.max_concurrent_vehicles,
+                                      dtype=torch.bool, device=self.device)
+        self.late_num = torch.zeros(self.bs, self.max_concurrent_vehicles,
+                                      dtype=torch.float, device=self.device)
+        self.late_cost = torch.zeros(self.bs, self.max_concurrent_vehicles,
+                                      dtype=torch.float, device=self.device)
+        self.late_time = torch.zeros(self.bs, self.max_concurrent_vehicles,
+                                      dtype=torch.float, device=self.device)
         # create graph attributes
         self.to_graph()
 
@@ -181,6 +199,9 @@ class RPEnv:
                                     dtype=self.fp_precision, device=self.device)
         self.cur_time_to_depot = torch.zeros(self.bs, self.max_concurrent_vehicles,
                                              dtype=self.fp_precision, device=self.device)
+
+        # print("tour_features init", self.max_concurrent_vehicles, self.cur_node.shape, self.cur_cap.shape, 
+        # self.cur_time.shape, self.cur_time_to_depot.shape, )
 
         if self.enable_render:
             if self.viewer is not None:
@@ -305,6 +326,10 @@ class RPEnv:
             'current_total_cost': self._total.cpu().numpy(),
             'k_used': self.k_used.cpu().numpy() if done and len(self.k_used) > 0 else [-1],
             'max_tour_len': self.tour_plan.argmin(dim=-1).max().item(),
+            "late_rate": self.late_rate.cpu().numpy(),
+            "late_num": self.late_num.cpu().numpy(),
+            "late_cost": self.late_cost.cpu().numpy(),
+            "late_time": self.late_time.cpu().numpy(),
         }
         self._step += 1
 
@@ -360,6 +385,7 @@ class RPEnv:
         assert np.all(np.array([x.max_vehicle_number for x in batch]) == k)
         # provide slightly more vehicles to make sure we always get a solution for all nodes
         self.max_vehicle_number = int(k + np.floor(np.log(k)))  #int(k + np.floor(np.sqrt(gs)))
+        self.max_vehicle_number = 1
         assert np.all(np.array([x.vehicle_capacity for x in batch]) == 1)
         self.vehicle_capacity = batch[0].vehicle_capacity   # normed to 1.0
         assert np.all(np.array([x.service_horizon for x in batch]) == 1)
@@ -370,6 +396,7 @@ class RPEnv:
             # compute and keep full distance matrix in memory
             self._dist_mat = self.compute_distance_matrix(self.coords)
             t_delta = self._dist_mat[:, :, 0]
+            t_delta = torch.round(t_delta)
         else:
             idx_pair = torch.stack((
                 torch.arange(0, self.graph_size, device=self.device)[None, :].expand(self.bs, self.graph_size),
@@ -392,15 +419,20 @@ class RPEnv:
                     warnings.warn(msg + f" Applying fix during inference...")
                 else:
                     raise RuntimeError(msg)
-        if self.inference:
+        # if self.inference:
+        if False:
             # quick and dirty fix for instances where it is not guaranteed that
             # one can return to the depot when arriving within any TW of a customer
+            # print("inf shape", self.tw.shape, self.time_to_depot.shape, self.service_time.shape)
+            # print("inf shape", self.tw.max(), self.time_to_depot.max(), self.service_time.max())
+            
             return_time = (self.tw[:, :, 1] + self.time_to_depot + self.service_time[:, None])
             no_return_mask = (return_time > 1.0)
             no_return_mask[:, 0] = False    # always false für depot
             if (no_return_mask.sum(-1) > self.graph_size * 0.05).any():
                 warnings.warn(f"Need to fix many TW for return to depot. Consider checking instance.")
             delta = return_time[no_return_mask] - 1.0
+            # print("tw_mask shape", self.tw.shape, no_return_mask.shape, return_time.shape)
             new_tw = torch.stack((
                 self.tw[no_return_mask][:, 0],
                 self.tw[no_return_mask][:, 1]-delta
@@ -1013,11 +1045,21 @@ class RPEnv:
         )
         mask_depot = at_depot & mask_depot[:, None].expand(-1, self.max_concurrent_vehicles)
         if mask_depot.any():
-            mask[mask_depot, torch.zeros(mask_depot.sum(), dtype=torch.long, device=self.device)] = 1
+            # print("mask depot", mask.shape, mask_depot.shape, mask_depot[0], (nbh==0).shape, (mask_depot[:, :, None] & (nbh==0)).shape)
+            # mask[mask_depot, torch.zeros(mask_depot.sum(), dtype=torch.long, device=self.device)] = 1
+            # print()
+            mask[(mask_depot[:, :, None] & (nbh==0))] = 1
+
+        # for tsp:
+        # if self.visited.all(-1):
+        mask[(nbh==0)] = 1
 
         # combine masks
-        mask = mask | exceeds_cap | exceeds_tw
+        # mask = mask | exceeds_cap | exceeds_tw
+        mask = mask | exceeds_cap 
+
         if (mask.all(-1)).any():
+            # print("mask shape", mask.shape)
             raise RuntimeError(f"no feasible nodes left: {mask.all(-1).nonzero()}")
         return nbh, mask
 
@@ -1042,6 +1084,8 @@ class RPEnv:
     def _get_observation(self) -> RPObs:
         """Gather the current observations."""
         nbh, mask = self._get_nbh_and_mask()
+        # print("tour_features cat", self.cur_node.shape, self.cur_cap.shape, 
+        # self.cur_time.shape, self.cur_time_to_depot.shape, ((-self.active_to_plan_idx + self.max_vehicle_number)/self.max_vehicle_number).shape)
         return RPObs(
             batch_size=self.bs,
             node_features=torch.cat((
@@ -1125,8 +1169,24 @@ class RPEnv:
         previous_time_to_depot = self.cur_time_to_depot[self._bidx, tour_select]
         self.cur_time_to_depot[self._bidx, tour_select] = time_to_depot_delta
 
+        # exceed tw penalty
+        exceeds_tw = arrival_time - tw[:, -1]
+        exceeds_tw[exceeds_tw < 0] = 0
+
         # calculate cost
         cost = cur_time_delta + (time_to_depot_delta - previous_time_to_depot)
+        cost = cost + self.late_penalty_factor * exceeds_tw 
+        # print("bf", cost.mean())
+        cost = cost + (exceeds_tw > 1e-4).to(dtype=float) * self.late_penalty
+        # print("aft", cost.mean())
+        self.exceeds_tw = (exceeds_tw > 1e-4)
+
+        # print("pc ", (exceeds_tw > 1e-4).to(dtype=float).shape, self.late_penalty)
+        
+        self.late_rate = (exceeds_tw > 1e-4) | self.late_rate
+        self.late_num = self.late_num + exceeds_tw
+        self.late_cost = self.late_cost + self.late_penalty_factor * exceeds_tw + (exceeds_tw > 1e-4).to(dtype=float) * self.late_penalty
+        self.late_time = self.late_time + exceeds_tw
 
         return cost
 

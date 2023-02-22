@@ -18,6 +18,8 @@ from torch.utils.data import Dataset
 from lib.routing.formats import RPInstance
 from lib.utils.challenge_utils import dimacs_challenge_dist_fn_np
 
+from lib.routing.load_tsp import load_tsptw_instances
+
 __all__ = [
     "RPGenerator", "RPDataset",
     'GROUPS', 'TYPES', 'TW_FRACS',
@@ -767,10 +769,22 @@ class RPDataset(Dataset):
         """Loads fixed dataset if filename was provided else
         samples a new dataset based on specified config."""
         if self.data_pth is not None:   # load data
-            self.data = RPGenerator.load_dataset(filename=self.data_pth,
-                                                 limit=sample_size,
-                                                 cfg=self.cfg,
-                                                 **kwargs)
+            
+            if kwargs.get("custom_func") is None:
+                self.data = load_tsptw_instances(self.data_pth)
+            else:
+                self.data = kwargs.get("custom_func")(self.data_pth)
+
+            print("len(self.data)", len(self.data), sample_size)
+            if sample_size < len(self.data):
+                idx = np.random.choice(len(self.data), sample_size, replace=False)
+                self.data = list(map(lambda ii: self.data[ii], idx.tolist()))
+            # self.data = self.data[idx]
+            
+            # self.data = RPGenerator.load_dataset(filename=self.data_pth,
+            #                                      limit=sample_size,
+            #                                      cfg=self.cfg,
+            #                                      **kwargs)
         else:
             self.data = self.gen.generate(
                 sample_size=sample_size,

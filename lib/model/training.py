@@ -36,16 +36,28 @@ def train_episode(data: List[RPInstance],
     costs, logs, entropy = [], [], []
     info = {}
     done = False
+
+    actions = []
+    # policy is <class 'lib.model.policy.Policy'>
+    # print("policy is", type(policy))
     while not done:
         action, log_likelihood, ent = policy(obs)
+        # print("obs ", obs.nbh_mask.shape, obs.nbh[0], obs.nbh_mask[0], action[0])
         obs, cost, done, info = env.step(action)
+        actions.append(action)
 
         costs.append(cost)
         logs.append(log_likelihood)
         if ent is not None:
             entropy.append(ent)
 
-    costs = sum(costs)
+    acts = torch.stack(actions, dim=0)
+    # print("act: ", acts.shape, acts[:, 0])
+
+    # costs = sum(costs)
+    for i in range(len(costs)-2, -1, -1):
+        costs[i] = costs[i] + costs[i+1] * 0.98
+    costs = torch.stack(costs, dim=1)
     logs = torch.stack(logs, dim=1)
     entropy = torch.stack(entropy, dim=0).mean() if entropy else None
     return costs, logs, entropy, info
@@ -76,6 +88,7 @@ def eval_episode(data: List[RPInstance],
             env.render(**kwargs)
         costs.append(cost)
 
+    # print("eval cost", len(costs), costs[0].shape, costs[-1].shape)
     costs = sum(costs).cpu()
     if env.num_samples > 1:
         # select best sample
@@ -159,6 +172,11 @@ def validate(
     cost, infos = rollout(dataset, env, policy, **cfg, **kwargs)
     k_used = np.concatenate([np.array(i['k_used']).reshape(-1) for i in infos])
     costs = np.concatenate([i['current_total_cost'] for i in infos], axis=-1)
+
+    late_rate = np.concatenate([np.array(i['late_rate']).reshape(-1) for i in infos])
+    late_num = np.concatenate([np.array(i['late_num']).reshape(-1) for i in infos])
+    late_cost = np.concatenate([np.array(i['late_cost']).reshape(-1) for i in infos])
+    late_time = np.concatenate([np.array(i['late_time']).reshape(-1) for i in infos])
     return {
         "cost": cost.mean().item(),
         "cost_std": cost.std().item(),
@@ -167,6 +185,10 @@ def validate(
         "k_used_max": np.max(k_used),
         "final_costs": costs,
         "final_costs_mean": costs.mean(),
+        "late_rate": late_rate.mean().item(),
+        "late_num": late_num.mean().item(),
+        "late_cost": late_cost.mean().item(),
+        "late_time": late_time.mean().item()
     }
 
 
@@ -193,7 +215,9 @@ def train_batch(batch: List,
         bl_val, bl_loss = baseline.eval(batch, cost)
 
     # Calculate loss
-    pg_loss = ((cost - bl_val) * log_p).mean()
+    # print("t: shapes", cost.shape, bl_val.shape, log_p.shape, len(batch))
+    pg_loss = ((cost[:, :, None] - bl_val) * log_p).mean()
+    # print("t: cost{:.3f}, bl_val{:.3f}, adv{:.3f}".format(cost.mean(), bl_val.mean(), (cost-bl_val).mean()))
 
     # add entropy regularization (pos coefficient) / bonus (neg coefficient)
     ent = entropy_coeff*entropy if entropy is not None else 0
@@ -282,6 +306,9 @@ def train(
 
     best_epoch = start_epoch
     best_cost, best_cost_std = val_result['cost'], val_result['cost_std']
+    late_rate = val_result['late_rate']
+    late_cost = val_result["late_cost"]
+    late_num = val_result["late_num"]
 
     # execute 'num_epochs' of training
     for epoch in range(1 + start_epoch, 1 + num_epochs):
@@ -291,6 +318,7 @@ def train(
         data = train_dataset.sample(sample_size=cfg['train_dataset_size'], graph_size=cfg['graph_size'])
         t_sample += time.time() - _t
         # precompute baseline if necessary
+        print("precompute baseline if necessary? ", type(baseline), )
         _t = time.time()
         data = baseline.wrap_dataset(data)
         t_baseline += time.time() - _t
@@ -341,6 +369,11 @@ def train(
         monitor.log_eval_data(val_result, n_episodes, mode="val")
 
         cost, cost_std = val_result['cost'], val_result['cost_std']
+
+        late_rate = val_result['late_rate']
+        late_cost = val_result["late_cost"]
+        late_num = val_result["late_num"]
+        late_time = val_result["late_time"]
         if best_epoch < 0 or cost < best_cost:
             best_epoch, best_cost, best_cost_std = epoch, cost, cost_std
 
@@ -351,10 +384,12 @@ def train(
 
         # save checkpoint
         monitor.save_data(epoch, n_episodes, gradient_step, ckpt_cb)
-        if verbose > 0:
-            logger.info(f"Epoch #{epoch}: "
-                        f"val_cost: {cost:.6f} ± {cost_std:.6f}, "
-                        f"best_cost: {best_cost:.6f} ± {best_cost_std:.6f} in #{best_epoch}")
+        # if verbose > 0:
+        logger.info(f"Epoch #{epoch}: "
+                    f"val_cost: {cost:.6f} ± {cost_std:.6f}, "
+                    f"best_cost: {best_cost:.6f} ± {best_cost_std:.6f} in #{best_epoch}, "
+                    f"late_num: {late_num:.6f} late_rate: {late_rate:.6f} late_cost: {late_cost:.6f}, "
+                    f"late_time: {late_time:.6f}")
 
     t_total = time.time() - t_start
     # checkpoint final model
