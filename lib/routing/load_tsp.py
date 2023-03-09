@@ -1,11 +1,45 @@
+import pandas as pd
 import pickle as pkl
 import os
 from lib.routing.formats import RPInstance
 import numpy as np
 import torch
 from functools import partial
+from random import choice
 
 from lib.routing.env import RPEnv
+from lib.utils.challenge_utils import dimacs_challenge_dist_fn
+
+def valid_instance(coords: torch.Tensor, demand: torch.Tensor, tw: torch.Tensor, service_time: torch.Tensor, org_service_horizon: float) -> bool:
+    dist_to_depot = dimacs_challenge_dist_fn(coords[1:], coords[0])
+    time_to_depot = dist_to_depot / org_service_horizon
+
+    return not (tw[1:, 1] + time_to_depot + service_time > 1.).any()
+
+def load_tsplib_instance(pth: str):
+    """ Load just one randomly-chosen instance from jxchen's tsptw daset in JAMPR's format """
+    with open(pth, "rb") as fd:
+        dataset = pkl.load(fd)
+
+    i = choice(range(len(dataset["data"])))
+    coord = dataset["data"][i]
+    tw = dataset["tw"][i]
+
+    instance = {"max_vehicle_number": 100, "vehicle_capacity": 100}
+    features = []
+    feature_names = ["node_id" "x_coord", "y_coord", "demand", "tw_start", "service_time"]
+
+    for j in range(coord.shape[0]):
+        features.append([j, coord[j, 0], coord[j, 1], 1.0 if j > 0 else 0.0, tw[j, 0], tw[j, 1], 0.0])
+
+    df = pd.DataFrame(data=features, columns=feature_names)
+    df.set_index("node_id")
+    df.drop(labels="node_id", axis=1, inplace=True)
+    df["tw_len"] = df.tw_end - df.tw_start
+
+    instance["feature"] = df
+
+    return instance
 
 def load_tsptw_instances(pth: str) -> RPInstance:
     """ Load an instance from jxchen's tsptw format
@@ -37,24 +71,28 @@ def load_tsptw_instances(pth: str) -> RPInstance:
 
     gsize = len(data[0])
     for i in range(len(dataset["data"])):
+        org_service_horizon = tws[i][0, 1]
         coords = torch.tensor(data[i]) / lf[i]
-        tw = torch.tensor(tws[i]) / lf[i]
+        tw = torch.tensor(tws[i]) / org_service_horizon
         if no_tw:
             tw[:] = tw[0]
         demand = torch.tensor([0.01] * gsize)
         service_time = torch.tensor(0)
+
+        # assert valid_instance(coords, demand, tw, service_time, org_service_horizon)
+        
         ret = RPInstance(
-            coords=coords / tw[0, 1],
+            coords=coords,
             demands=demand,
-            tw=tw / tw[0, 1],
+            tw=tw,
             service_time=service_time,
             graph_size=coords.shape[0],
-            org_service_horizon=tw[0, 1],
+            org_service_horizon=org_service_horizon,
             max_vehicle_number=100,
             vehicle_capacity=1.0,  # is normalized
             service_horizon=1.0,  # is normalized
             depot_idx=[0],
-            type=str(type),
+            type="1",
             tw_frac=str("1") # all nodes have time-window constrain.
         )
         rets.append(ret)

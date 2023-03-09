@@ -114,7 +114,7 @@ class Runner:
         train_ds_cfg = self.cfg.train_ds_cfg.copy()
         self.train_ds = RPDataset(**train_ds_cfg)
         val_ds_cfg = self.cfg.val_ds_cfg.copy()
-        self.val_ds = RPDataset(**val_ds_cfg)        
+        self.val_ds = RPDataset(**val_ds_cfg)
 
     def _build_policy(self, state_dict: Optional[OrderedDict] = None):
         """Initialize the policy model."""

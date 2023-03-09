@@ -1056,7 +1056,7 @@ class RPEnv:
 
         # combine masks
         # mask = mask | exceeds_cap | exceeds_tw
-        mask = mask | exceeds_cap 
+        mask = mask | exceeds_cap
 
         if (mask.all(-1)).any():
             # print("mask shape", mask.shape)

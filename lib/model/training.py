@@ -355,8 +355,8 @@ def train(
 
         ep_duration = time.time() - t_ep_start
         t_epoch += ep_duration
-        if verbose > 1:
-            logger.info(f"Finished epoch {epoch}, ({time.strftime('%H:%M:%S', time.gmtime(ep_duration))} s)")
+        # if verbose > 1:
+        logger.info(f"Finished epoch {epoch}, ({time.strftime('%H:%M:%S', time.gmtime(ep_duration))} s)")
 
         # run validation
         val_result = validate(

@@ -3,7 +3,7 @@
 
 defaults:
   - _self_
-  - env: all_1_high
+  - env: tsp_naive.yaml
   - policy: gnn_attn
   - baseline: rollout
   - meta: train
