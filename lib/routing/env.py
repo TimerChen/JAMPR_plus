@@ -419,8 +419,7 @@ class RPEnv:
                     warnings.warn(msg + f" Applying fix during inference...")
                 else:
                     raise RuntimeError(msg)
-        # if self.inference:
-        if False:
+        if self.inference:
             # quick and dirty fix for instances where it is not guaranteed that
             # one can return to the depot when arriving within any TW of a customer
             # print("inf shape", self.tw.shape, self.time_to_depot.shape, self.service_time.shape)
@@ -1052,7 +1051,7 @@ class RPEnv:
 
         # for tsp:
         # if self.visited.all(-1):
-        mask[(nbh==0)] = 1
+        mask[(nbh==0) & self.visited.all(-1).bitwise_not()[:, None, None]] = 1
 
         # combine masks
         # mask = mask | exceeds_cap | exceeds_tw
