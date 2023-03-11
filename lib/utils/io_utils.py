@@ -11,6 +11,7 @@ import scipy.stats as stats
 from sklearn.cluster import KMeans
 
 from lib.routing.formats import RPInstance
+from lib.routing.load_tsp import load_tsplib_instance
 
 __all__ = [
     'read_tsplib_cvrptw',
@@ -123,7 +124,7 @@ def to_rp_instance(instance) -> RPInstance:
 def load_instance(pth: str) -> RPInstance:
     """Load an instance in TSPLIB format,
     normalize it and wrap into RPInstance."""
-    instance = read_tsplib_cvrptw(pth)
+    instance = read_tsplib_cvrptw(pth) if pth[-3:] == "txt" else load_tsplib_instance(pth)
     instance = normalize_instance(instance)
     return instance
 
