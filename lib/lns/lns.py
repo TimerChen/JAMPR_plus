@@ -259,8 +259,14 @@ class LNS:
             action, _, _ = self.policy(obs)
             # print(action[:, 0])
             obs, cost, done, info = self.env.step(action)
+            if self.env.enable_render:
+                self.env.render()
             #print(f"step: {i}")
             #i += 1
+        if self.env.enable_render:
+            self.env.viewer.save()
+            self.env.viewer.close()
+            self.env.viewer = None
 
         solutions, costs = self.env.export_sol(self.cfg.num_best,
                                                self.cfg.num_other,

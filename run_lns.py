@@ -15,6 +15,10 @@ def run(cfg: DictConfig):
 
     lns = LNS(cfg)
     lns.load_instance(cfg.data_path)
+
+    for i in range(len(lns.rp_instance.coords)):
+        print(i, lns.rp_instance.coords[i], lns.rp_instance.tw[i])
+    
     lns.setup(time_limit=int(cfg.time_limit))
     lns.search()
 
