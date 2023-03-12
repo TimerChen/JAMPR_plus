@@ -28,7 +28,7 @@ def load_tsplib_instance(pth: str):
     feature_names = ["node_id", "x_coord", "y_coord", "demand", "tw_start", "tw_end", "service_time"]
 
     for j in range(coord.shape[0]):
-        features.append([j, coord[j, 0], coord[j, 1], 1.0 if j > 0 else 0.0, tw[0, 0], tw[0, 1], 0.0])
+        features.append([j, coord[j, 0], coord[j, 1], 1.0 if j > 0 else 0.0, tw[j, 0], tw[j, 1], 0.0])
 
     df = pd.DataFrame(data=features, columns=feature_names)
     df.set_index("node_id")
