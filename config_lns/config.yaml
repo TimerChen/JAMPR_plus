@@ -3,9 +3,9 @@
 
 defaults:
   - _self_
-  - search: default
+  - search: tsptw
   - env_cfg_overrides: K1
-  - model: v1
+  - model: tsp
   - override hydra/job_logging: file
 
 

@@ -1,0 +1,16 @@
+# @package _global_
+# model checkpoints to load for different time window frequencies (twf)
+
+type_twf_map_model:
+  1:
+    0.0: "checkpoints/tsp_v2.ckpt"
+    0.3: "checkpoints/tsp_v2.ckpt"
+    0.5: "checkpoints/tsp_v2.ckpt"
+    0.75: "checkpoints/tsp_v2.ckpt"
+    1.0: "checkpoints/tsp_v2.ckpt"
+
+  2:
+    0.25: "checkpoints/tsp_v1.ckpt"
+    0.5: "checkpoints/tsp_v1.ckpt"
+    0.75: "checkpoints/tsp_v1.ckpt"
+    1.0: "checkpoints/tsp_v1.ckpt"

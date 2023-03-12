@@ -24,14 +24,14 @@ env_cfg:
 train_ds_cfg:
   cfg: ${_data_cfg}
   stats_pth: #
-  data_pth: "/home/jxchen/Code/TSP-DT/data/tsptw/dataset/21/tsptw21_train_naive_large.pkl"
+  data_pth: "/NAS2020/Workspaces/DRLGroup/zqgong/TSP-TW/TSP_dataset/tsptw21_train_naive.pkl"
 
 val_ds_cfg:
   cfg: ${_data_cfg}
   stats_pth: #
-  data_pth: "/home/jxchen/Code/TSP-DT/data/tsptw/dataset/21/tsptw21_valid_naive.pkl"
+  data_pth: "/NAS2020/Workspaces/DRLGroup/zqgong/TSP-TW/TSP_dataset/tsptw21_valid_naive.pkl"
 
 test_ds_cfg:
   cfg: ${_data_cfg}
   stats_pth: #
-  data_pth: "/home/jxchen/Code/TSP-DT/data/tsptw/dataset/21/tsptw21_valid_real.pkl"
+  data_pth: "/NAS2020/Workspaces/DRLGroup/zqgong/TSP-TW/TSP_dataset/tsptw21_valid_real.pkl"
