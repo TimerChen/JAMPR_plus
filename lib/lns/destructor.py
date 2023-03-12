@@ -188,7 +188,7 @@ class Destructor:
         """Removes 'num_rm_complete_routes' random tours from provided list."""
         n_c = len(tours)
         n_rm = int(max(round(self.frac_rm_complete_routes*n_c), 1))
-        rm_idx = self.rnd.choice(np.arange(n_c), size=n_rm, replace=False)
+        rm_idx = self.rnd.choice(np.arange(n_c), size=n_rm, replace=False) if n_c > 0 else []
         return [ct for i, ct in enumerate(tours) if i not in rm_idx]
 
     def _rm_smallest_routes(self, tours: List[List]) -> List[List]:
