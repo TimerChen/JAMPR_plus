@@ -37,6 +37,7 @@ class RPInstance(NamedTuple):
     depot_idx: List = [0]
     type: Union[int, str] = ""
     tw_frac: Union[float, str] = ""
+    expert_sol: List[int] = None
 
     @property
     def node_features(self):

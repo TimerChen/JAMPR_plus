@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 
 from lib.routing import RPEnv, RPInstance, RPDataset
 from lib.utils.runner_utils import MonitorCallback, CheckpointCallback
+from lib.utils.challenge_utils import eval_tsp_sols
 from lib.model.policy import Policy
 from lib.model.baselines.base_class import Baseline
 
@@ -75,10 +76,13 @@ def eval_episode(data: List[RPInstance],
     policy.set_decode_type('sampling' if sampling and not env.pomo else 'greedy')
     policy.reset_static()
 
+    bs = len(data)
+
     env.load_data(data)
     obs = env.reset()
 
     costs = []
+    actions = []
     info = None
     done = False
     while not done:
@@ -87,9 +91,18 @@ def eval_episode(data: List[RPInstance],
         if render:
             env.render(**kwargs)
         costs.append(cost)
+        actions.append(action)
 
     # print("eval cost", len(costs), costs[0].shape, costs[-1].shape)
     costs = sum(costs).cpu()
+    sols = [[a[i][1].item() for a in actions] for i in range(bs)]
+    tps = list(map(lambda i: (i.expert_sol, i.coords, i.tw, i.org_service_horizon), data))
+    if_valid, exp_valid, gaps = eval_tsp_sols(sols, *map(lambda x: list(x), zip(*tps)))
+
+    info["valid_rate"] = if_valid.sum() / if_valid.shape[0]
+    info["expert_valid_rate"] = exp_valid.sum() / exp_valid.shape[0]
+    info["avg_gap_with_expert"] = gaps[if_valid].mean()
+
     if env.num_samples > 1:
         # select best sample
         c = info['current_total_cost']
@@ -177,18 +190,27 @@ def validate(
     late_num = np.concatenate([np.array(i['late_num']).reshape(-1) for i in infos])
     late_cost = np.concatenate([np.array(i['late_cost']).reshape(-1) for i in infos])
     late_time = np.concatenate([np.array(i['late_time']).reshape(-1) for i in infos])
+
+    valid_rate = np.concatenate([np.array(i["valid_rate"]).reshape(-1) for i in infos])
+    expert_valid_rate = np.concatenate([np.array(i["expert_valid_rate"]).reshape(-1) for i in infos])
+    avg_gap_with_expert = np.concatenate([np.array(i["avg_gap_with_expert"]).reshape(-1) for i in infos])
+
     return {
         "cost": cost.mean().item(),
         "cost_std": cost.std().item(),
         "k_used": np.mean(k_used),
         "k_used_std": np.std(k_used),
         "k_used_max": np.max(k_used),
-        "final_costs": costs,
+        # "final_costs": costs,
         "final_costs_mean": costs.mean(),
         "late_rate": late_rate.mean().item(),
         "late_num": late_num.mean().item(),
         "late_cost": late_cost.mean().item(),
-        "late_time": late_time.mean().item()
+        "late_time": late_time.mean().item(),
+        "valid_rate": valid_rate.mean().item(),
+        "expert_valid_rate": expert_valid_rate.mean().item(),
+        "avg_gap_with_expert": avg_gap_with_expert.mean().item(),
+        "dataset": dataset.data_pth
     }
 
 

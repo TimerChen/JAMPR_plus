@@ -759,10 +759,11 @@ class RPDataset(Dataset):
     def load_ds(self, limit: Optional[int] = None, **kwargs):
         """Simply load dataset from data_path specified on init."""
         assert self.data_pth is not None
-        self.data = RPGenerator.load_dataset(filename=self.data_pth,
-                                             limit=limit,
-                                             cfg=self.cfg,
-                                             **kwargs)
+        # self.data = RPGenerator.load_dataset(filename=self.data_pth,
+        #                                      limit=limit,
+        #                                      cfg=self.cfg,
+        #                                      **kwargs)
+        self.data = load_tsptw_instances(self.data_pth)
         self.size = len(self.data)
 
     def sample(self, sample_size: int = 10000, graph_size: int = 100, **kwargs):

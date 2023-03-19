@@ -91,7 +91,8 @@ def load_tsptw_instances(pth: str) -> RPInstance:
             service_horizon=1.0,  # is normalized
             depot_idx=[0],
             type="1",
-            tw_frac=str("1") # all nodes have time-window constrain.
+            tw_frac=str("1"), # all nodes have time-window constrain.
+            expert_sol=dataset['seq'][i]
         )
         rets.append(ret)
 

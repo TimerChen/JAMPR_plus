@@ -6,7 +6,7 @@ defaults:
   - env: tsp_naive.yaml
   - policy: gnn_attn
   - baseline: rollout
-  - meta: train
+  - meta: eval
   - mk: mk1
   - hp_override: none
   - override hydra/job_logging: simple
