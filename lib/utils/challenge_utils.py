@@ -55,6 +55,8 @@ def eval_tsp_sols(sols: List[List[int]], expert_sols: List[List[int]], coords: L
         exp_prev = 0
         tm = torch.tensor(0.)
         exp_tm = torch.tensor(0.)
+        sol_len = torch.tensor(0.)
+        exp_len = torch.tensor(0.)
         valid = True
         exp_valid = True
         for j, nxt in enumerate(sol):
@@ -62,6 +64,8 @@ def eval_tsp_sols(sols: List[List[int]], expert_sols: List[List[int]], coords: L
 
             tm += time_mat[prev, nxt]
             exp_tm += time_mat[exp_prev, exp_nxt]
+            sol_len += time_mat[prev, nxt]
+            exp_len += time_mat[exp_prev, exp_nxt]
 
             if tm > tws[i][nxt, 1]:
                 valid = False
@@ -76,7 +80,7 @@ def eval_tsp_sols(sols: List[List[int]], expert_sols: List[List[int]], coords: L
         
         if_valid.append(valid)
         if_exp_valid.append(exp_valid)
-        gaps.append((tm - exp_tm).item())
+        gaps.append((sol_len / exp_len - 1).item())
 
     return torch.tensor(if_valid), torch.tensor(if_exp_valid), torch.tensor(gaps)
 
