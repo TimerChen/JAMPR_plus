@@ -24,7 +24,7 @@ env_cfg:
 train_ds_cfg:
   cfg: ${_data_cfg}
   stats_pth: #
-  data_pth: "/NAS2020/Workspaces/DRLGroup/zqgong/TSP-TW/TSP_dataset/tsptw21_train_naive.pkl"
+  data_pth: "/NAS2020/Workspaces/DRLGroup/zqgong/TSP-TW/TSP_dataset/tsptw21_train_both.pkl"
 
 val_ds_cfg:
   cfg: ${_data_cfg}
