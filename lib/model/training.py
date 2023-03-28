@@ -52,13 +52,13 @@ def train_episode(data: List[RPInstance],
         if ent is not None:
             entropy.append(ent)
 
-    acts = torch.stack(actions, dim=0)
+    # acts = torch.stack(actions, dim=0)
     # print("act: ", acts.shape, acts[:, 0])
 
-    # costs = sum(costs)
-    for i in range(len(costs)-2, -1, -1):
-        costs[i] = costs[i] + costs[i+1] * 0.98
-    costs = torch.stack(costs, dim=1)
+    costs = sum(costs)
+    # for i in range(len(costs)-2, -1, -1):
+    #     costs[i] = costs[i] + costs[i+1] * 0.98
+    # costs = torch.stack(costs, dim=1)
     logs = torch.stack(logs, dim=1)
     entropy = torch.stack(entropy, dim=0).mean() if entropy else None
     return costs, logs, entropy, info
@@ -97,11 +97,12 @@ def eval_episode(data: List[RPInstance],
     costs = sum(costs).cpu()
     sols = [[a[i][1].item() for a in actions] for i in range(bs)]
     tps = list(map(lambda i: (i.expert_sol, i.coords, i.tw, i.org_service_horizon), data))
-    if_valid, exp_valid, gaps = eval_tsp_sols(sols, *map(lambda x: list(x), zip(*tps)))
+    if_valid, exp_valid, gaps, tm_gaps = eval_tsp_sols(sols, *map(lambda x: list(x), zip(*tps)))
 
     info["valid_rate"] = if_valid.sum() / if_valid.shape[0]
     info["expert_valid_rate"] = exp_valid.sum() / exp_valid.shape[0]
     info["avg_gap_with_expert"] = gaps[if_valid].mean()
+    info["avg_tm_gap"] = tm_gaps[if_valid].mean()
 
     if env.num_samples > 1:
         # select best sample
@@ -194,6 +195,7 @@ def validate(
     valid_rate = np.concatenate([np.array(i["valid_rate"]).reshape(-1) for i in infos])
     expert_valid_rate = np.concatenate([np.array(i["expert_valid_rate"]).reshape(-1) for i in infos])
     avg_gap_with_expert = np.concatenate([np.array(i["avg_gap_with_expert"]).reshape(-1) for i in infos])
+    avg_tm_gap = np.concatenate([np.array(i["avg_tm_gap"]).reshape(-1) for i in infos])
 
     return {
         "cost": cost.mean().item(),
@@ -209,7 +211,8 @@ def validate(
         "late_time": late_time.mean().item(),
         "valid_rate": valid_rate.mean().item(),
         "expert_valid_rate": expert_valid_rate.mean().item(),
-        "avg_gap_with_expert": avg_gap_with_expert.mean().item(),
+        "avg_gap_with_expert": avg_gap_with_expert[avg_gap_with_expert == avg_gap_with_expert].mean().item(),
+        "avg_tm_gap": avg_tm_gap[avg_tm_gap == avg_tm_gap].mean().item(),
         "dataset": dataset.data_pth
     }
 
@@ -238,7 +241,8 @@ def train_batch(batch: List,
 
     # Calculate loss
     # print("t: shapes", cost.shape, bl_val.shape, log_p.shape, len(batch))
-    pg_loss = ((cost[:, :, None] - bl_val) * log_p).mean()
+    # pg_loss = ((cost[:, :, None] - bl_val) * log_p).mean()
+    pg_loss = ((cost - bl_val) * log_p).mean()
     # print("t: cost{:.3f}, bl_val{:.3f}, adv{:.3f}".format(cost.mean(), bl_val.mean(), (cost-bl_val).mean()))
 
     # add entropy regularization (pos coefficient) / bonus (neg coefficient)
@@ -411,7 +415,10 @@ def train(
                     f"val_cost: {cost:.6f} ± {cost_std:.6f}, "
                     f"best_cost: {best_cost:.6f} ± {best_cost_std:.6f} in #{best_epoch}, "
                     f"late_num: {late_num:.6f} late_rate: {late_rate:.6f} late_cost: {late_cost:.6f}, "
-                    f"late_time: {late_time:.6f}")
+                    f"late_time: {late_time:.6f}, "
+                    f"valid_rate: {val_result['valid_rate']}, "
+                    f"gap: {val_result['avg_gap_with_expert']}, "
+                    f"tm_gap: {val_result['avg_tm_gap']}")
 
     t_total = time.time() - t_start
     # checkpoint final model

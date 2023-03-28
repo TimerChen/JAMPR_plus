@@ -37,6 +37,7 @@ def eval_tsp_sols(sols: List[List[int]], expert_sols: List[List[int]], coords: L
     if_valid = []
     if_exp_valid = []
     gaps = []
+    tm_gaps = []
 
     for i, sol in enumerate(sols):
         expert_sol = expert_sols[i]
@@ -81,8 +82,9 @@ def eval_tsp_sols(sols: List[List[int]], expert_sols: List[List[int]], coords: L
         if_valid.append(valid)
         if_exp_valid.append(exp_valid)
         gaps.append((sol_len / exp_len - 1).item())
+        tm_gaps.append((tm / exp_tm - 1).item())
 
-    return torch.tensor(if_valid), torch.tensor(if_exp_valid), torch.tensor(gaps)
+    return torch.tensor(if_valid), torch.tensor(if_exp_valid), torch.tensor(gaps), torch.tensor(tm_gaps)
 
 
 # ============= #
