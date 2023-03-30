@@ -101,7 +101,8 @@ def eval_episode(data: List[RPInstance],
 
     info["valid_rate"] = if_valid.sum() / if_valid.shape[0]
     info["expert_valid_rate"] = exp_valid.sum() / exp_valid.shape[0]
-    info["avg_gap_with_expert"] = gaps[if_valid].mean()
+    info["avg_path_gap"] = gaps.mean()
+    info["avg_valid_path_gap"] = gaps[if_valid].mean()
     info["avg_tm_gap"] = tm_gaps[if_valid].mean()
 
     if env.num_samples > 1:
@@ -194,7 +195,8 @@ def validate(
 
     valid_rate = np.concatenate([np.array(i["valid_rate"]).reshape(-1) for i in infos])
     expert_valid_rate = np.concatenate([np.array(i["expert_valid_rate"]).reshape(-1) for i in infos])
-    avg_gap_with_expert = np.concatenate([np.array(i["avg_gap_with_expert"]).reshape(-1) for i in infos])
+    avg_path_gap = np.concatenate([np.array(i["avg_path_gap"]).reshape(-1) for i in infos])
+    avg_valid_path_gap = np.concatenate([np.array(i["avg_valid_path_gap"]).reshape(-1) for i in infos])
     avg_tm_gap = np.concatenate([np.array(i["avg_tm_gap"]).reshape(-1) for i in infos])
 
     return {
@@ -211,7 +213,8 @@ def validate(
         "late_time": late_time.mean().item(),
         "valid_rate": valid_rate.mean().item(),
         "expert_valid_rate": expert_valid_rate.mean().item(),
-        "avg_gap_with_expert": avg_gap_with_expert[avg_gap_with_expert == avg_gap_with_expert].mean().item(),
+        "avg_path_gap": avg_path_gap[avg_path_gap == avg_path_gap].mean().item(),
+        "avg_valid_path_gap": avg_valid_path_gap[avg_valid_path_gap == avg_valid_path_gap].mean().item(),
         "avg_tm_gap": avg_tm_gap[avg_tm_gap == avg_tm_gap].mean().item(),
         "dataset": dataset.data_pth
     }
@@ -394,6 +397,15 @@ def train(
         )
         monitor.log_eval_data(val_result, n_episodes, mode="val")
 
+        train_eval_result = validate(
+            train_dataset, val_env, policy,
+            batch_size=cfg['val_batch_size'],
+            num_workers=cfg['num_workers'],
+            disable_progress_bar=no_p_bar,
+            render=render_val,
+        )
+        monitor.log_eval_data(train_eval_result, n_episodes, mode="train_eval")
+
         cost, cost_std = val_result['cost'], val_result['cost_std']
 
         late_rate = val_result['late_rate']
@@ -417,7 +429,10 @@ def train(
                     f"late_num: {late_num:.6f} late_rate: {late_rate:.6f} late_cost: {late_cost:.6f}, "
                     f"late_time: {late_time:.6f}, "
                     f"valid_rate: {val_result['valid_rate']}, "
-                    f"gap: {val_result['avg_gap_with_expert']}, "
+                    f"eval_gap: {val_result['avg_path_gap']}, "
+                    f"eval_valid_gap: {val_result['avg_valid_path_gap']}, "
+                    f"train_gap: {train_eval_result['avg_path_gap']}, "
+                    f"train_valid_gap: {train_eval_result['avg_valid_path_gap']}, "
                     f"tm_gap: {val_result['avg_tm_gap']}")
 
     t_total = time.time() - t_start
