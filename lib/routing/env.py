@@ -812,17 +812,26 @@ class RPEnv:
         # nbh graph is static and only needs to be created at start of episode
         if self.nbh_edges is None or self.nbh_weights is None:
             nbh_edges, nbh_weights = [], []
+            nbh_full_edges = []
+            # print("self.graph_size", self.graph_size, self.nbh_sampler.k)
+            a = torch.arange(0, self.graph_size, dtype=int, device=self.coords.device)
+            a0 = a[None, :].repeat(self.graph_size, 1).reshape(-1)
+            a1 = a[:, None].repeat(1, self.graph_size).reshape(-1)
+            fe = torch.stack([a0, a1], dim=0)
             for i, c in enumerate(self.coords):
                 e = self.nbh_sampler(c)
                 nbh_edges.append(e + self.idx_inc[i])   # increase node indices by running idx
+                nbh_full_edges.append(fe + self.idx_inc[i])
                 # calculate weights
                 idx_coords = c[e]
                 nbh_weights.append(
                     dimacs_challenge_dist_fn(idx_coords[0], idx_coords[1])/self.org_service_horizon[i]
                 )
+            self.nbh_full_edges = torch.cat(nbh_full_edges, dim=-1)
             self.nbh_edges = torch.cat(nbh_edges, dim=-1)
             self.nbh_weights = torch.cat(nbh_weights, dim=-1)
-            self.k_nbh_size = self.nbh_sampler.k
+            # self.k_nbh_size = self.nbh_sampler.k
+            self.k_nbh_size = self.graph_size
 
         if self.tour_edges is None or self.tour_weights is None:
             # initialize - no tours exist
@@ -882,7 +891,7 @@ class RPEnv:
         depot_mask = (node_idx == 0)
         if depot_mask.any():
             # first N elements in self.nbh_edges[0] are depot nbh
-            depot_nbh = self.nbh_edges.view(2, self.bs, -1)[:, :, :self.graph_size]
+            depot_nbh = self.nbh_full_edges.view(2, self.bs, -1)[:, :, :self.graph_size]
             if self.ordered_idx is None:
                 # order the nodes in the depot nbh by their distance to depot
                 idx_coords = self.coords.view(-1, 2)[depot_nbh.reshape(2, -1)]
@@ -923,7 +932,7 @@ class RPEnv:
                 )
 
         # get other node nbh
-        nbh = self.nbh_edges.view(2, self.bs, -1)[:, :, self.graph_size:]
+        nbh = self.nbh_full_edges.view(2, self.bs, -1)[:, :, self.graph_size:]
         nbh = (
             nbh[0].view(self.bs, self.graph_size-1, self.k_nbh_size)
             # here we just clamp to enable the gather operation on dummy depot node indices,
