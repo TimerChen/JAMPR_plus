@@ -341,6 +341,7 @@ def train(
 
     # execute 'num_epochs' of training
     for epoch in range(1 + start_epoch, 1 + num_epochs):
+        time_cnt = []
 
         # Generate new training data for each epoch
         _t = time.time()
@@ -351,6 +352,7 @@ def train(
         _t = time.time()
         data = baseline.wrap_dataset(data)
         t_baseline += time.time() - _t
+        time_cnt.append(("bsl", time.time() - _t))
         # wrap into data iterator
         train_dl = DataLoader(data,
                               batch_size=cfg['train_batch_size'],
@@ -383,10 +385,13 @@ def train(
             monitor.log_train_data(result, n_episodes)
 
         ep_duration = time.time() - t_ep_start
+        time_cnt.append(("train", ep_duration))
         t_epoch += ep_duration
         # if verbose > 1:
         logger.info(f"Finished epoch {epoch}, ({time.strftime('%H:%M:%S', time.gmtime(ep_duration))} s)")
 
+
+        _t = time.time()
         # run validation
         val_result = validate(
             val_dataset, val_env, policy,
@@ -396,15 +401,17 @@ def train(
             render=render_val,
         )
         monitor.log_eval_data(val_result, n_episodes, mode="val")
+        time_cnt.append(("valid", time.time() - t_ep_start))
 
-        train_eval_result = validate(
-            train_dataset, val_env, policy,
-            batch_size=cfg['val_batch_size'],
-            num_workers=cfg['num_workers'],
-            disable_progress_bar=no_p_bar,
-            render=render_val,
-        )
-        monitor.log_eval_data(train_eval_result, n_episodes, mode="train_eval")
+        logger.info(f"Time benchmark {epoch}: {str(time_cnt)}")
+        # train_eval_result = validate(
+        #     train_dataset, val_env, policy,
+        #     batch_size=cfg['val_batch_size'],
+        #     num_workers=cfg['num_workers'],
+        #     disable_progress_bar=no_p_bar,
+        #     render=render_val,
+        # )
+        # monitor.log_eval_data(train_eval_result, n_episodes, mode="train_eval")
 
         cost, cost_std = val_result['cost'], val_result['cost_std']
 
@@ -431,8 +438,8 @@ def train(
                     f"valid_rate: {val_result['valid_rate']}, "
                     f"eval_gap: {val_result['avg_path_gap']}, "
                     f"eval_valid_gap: {val_result['avg_valid_path_gap']}, "
-                    f"train_gap: {train_eval_result['avg_path_gap']}, "
-                    f"train_valid_gap: {train_eval_result['avg_valid_path_gap']}, "
+                    # f"train_gap: {train_eval_result['avg_path_gap']}, "
+                    # f"train_valid_gap: {train_eval_result['avg_valid_path_gap']}, "
                     f"tm_gap: {val_result['avg_tm_gap']}")
 
     t_total = time.time() - t_start

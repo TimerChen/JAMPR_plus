@@ -153,7 +153,8 @@ class Runner:
                 **env_cfg
             )
             env.seed(self.cfg.global_seed)
-            ds_cfg = self.cfg.train_ds_cfg.copy()
+            # ds_cfg = self.cfg.train_ds_cfg.copy()
+            ds_cfg = self.cfg.val_ds_cfg.copy()
             ds = RPDataset(**ds_cfg)
             baseline = RolloutBaseline(
                 dataset=ds,
