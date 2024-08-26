@@ -1,0 +1,39 @@
+# @package _global_
+# problem args
+
+problem_id: "tsp_naive"
+graph_size: 51
+
+# cfg specifying Solomon data groups, types and tw fractions
+_data_cfg:
+  groups: [ "r" ]
+  types: [0]
+  tw_fracs: [ 1 ]
+
+# RPEnv cfg
+env_cfg:
+  k_nbh_frac: 1.0
+  max_concurrent_vehicles: 1
+  pomo: False
+  pomo_single_start_node: True
+  num_samples: 1
+  late_penalty: 1.
+  late_penalty_factor: 1.0
+
+# data
+train_ds_cfg:
+  cfg: ${_data_cfg}
+  stats_pth: #
+  data_pth: 
+    - "/NAS2020/Share/jxchen/datasets/tsptw_musla_new/tsptw-data-node51/tsptw/dataset/51/tsptw51_train_medium_large.pkl"
+    - "/NAS2020/Share/jxchen/datasets/tsptw_musla_new/tsptw-data-node51/tsptw/dataset/51/tsptw51_train_hard-window_large.pkl"
+
+val_ds_cfg:
+  cfg: ${_data_cfg}
+  stats_pth: #
+  data_pth: "/NAS2020/Share/jxchen/datasets/tsptw_musla_new/tsptw-data-node51/tsptw/dataset/51/tsptw51_valid_medium_large.pkl"
+
+test_ds_cfg:
+  cfg: ${_data_cfg}
+  stats_pth: #
+  data_pth: "/NAS2020/Share/jxchen/datasets/tsptw_musla_new/tsptw-data-node51/tsptw/dataset/51/tsptw51_valid_hard-window_large.pkl"

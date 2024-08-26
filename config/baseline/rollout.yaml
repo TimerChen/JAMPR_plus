@@ -7,7 +7,7 @@ baseline_cfg:
     bl_alpha: 0.05
     sample_size: 1024
     graph_size: ${graph_size}
-    batch_size: 128
+    batch_size: 800
     check_significance: True    # flag to use ttest
     alpha: 0.05   # p-val confidence lvl
     resample_interval: 2    # number of epochs when to resample baseline val set

@@ -23,25 +23,25 @@ checkpoint_cfg:
   save_last: True       # always safe last model checkpoint
 
 monitor_cfg:
-  train_interval: 200    # log training results every train_interval episodes
-  eval_interval: 200     # log test results every test_interval episodes
-  save_interval: 1       # save checkpoint every save_interval epochs if val metric is better
+  train_interval: 8000    # log training results every train_interval episodes
+  eval_interval: 8000     # log test results every test_interval episodes
+  save_interval: 50       # save checkpoint every save_interval epochs if val metric is better
 
 optimizer_cfg:
   lr_policy: 2.5e-4
 
 scheduler_cfg:
   schedule_type: "linear"
-  decay: 0.97
+  decay: 1
 
 
 trainer_cfg:
-  num_epochs: 100
+  num_epochs: 500 # 500*100000
   disable_progress_bar: True
   num_workers: 0
 
-  train_dataset_size: 25000
-  train_batch_size: 100
+  train_dataset_size: 100000 # 100000
+  train_batch_size: 1024
   val_dataset_size: 1024
   val_batch_size: 128
   graph_size: ${graph_size}
@@ -53,8 +53,8 @@ trainer_cfg:
 
 # test-set evaluation
 tester_cfg:
-  test_batch_size: 32
-  render: True
+  test_batch_size: 1000
+  render: False
   disable_progress_bar: False
   sampling: False
   num_samples: 10

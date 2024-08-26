@@ -180,7 +180,7 @@ class RPEnv:
                                     dtype=torch.bool, device=self.device)
         self._finished = torch.zeros(self.bs, self.max_vehicle_number,
                                      dtype=torch.bool, device=self.device)
-        seq_buffer_len = min(64, self.graph_size)
+        seq_buffer_len = self.graph_size
         self.tour_plan = torch.zeros(self.bs, self.max_vehicle_number, seq_buffer_len,
                                      dtype=torch.int16, device=self.device)
         self.active_vehicles = torch.zeros(self.bs, self.max_vehicle_number,
@@ -814,7 +814,7 @@ class RPEnv:
             nbh_edges, nbh_weights = [], []
             nbh_full_edges = []
             # print("self.graph_size", self.graph_size, self.nbh_sampler.k)
-            a = torch.arange(0, self.graph_size, dtype=int, device=self.coords.device)
+            a = torch.arange(0, self.graph_size, dtype=torch.long, device=self.device)
             a0 = a[None, :].repeat(self.graph_size, 1).reshape(-1)
             a1 = a[:, None].repeat(1, self.graph_size).reshape(-1)
             fe = torch.stack([a0, a1], dim=0)
@@ -1099,7 +1099,7 @@ class RPEnv:
             node_features=torch.cat((
                 self.coords,
                 self.demands[:, :, None],
-                self.tw,
+                self.tw, # self.tw / self.graph_size, # normalize
                 self.service_time[:, None, None].expand(self.bs, self.graph_size, 1),
                 self.time_to_depot[:, :, None],
             ), dim=-1),
@@ -1113,8 +1113,9 @@ class RPEnv:
             tour_features=torch.cat((
                 self.cur_node[:, :, None],  # just node idx!
                 self.cur_cap[:, :, None],
-                self.cur_time[:, :, None],
-                self.cur_time_to_depot[:, :, None],
+                # self.cur_time[:, :, None] / self.graph_size, # normalize
+                # self.cur_time_to_depot[:, :, None] / self.graph_size, # normalize
+                self.cur_time[:, :, None], self.cur_time_to_depot[:, :, None],
                 # last entry encodes 'vehicle id' as well as 'number of remaining vehicles'
                 ((-self.active_to_plan_idx + self.max_vehicle_number)/self.max_vehicle_number)[:, :, None],
             ), dim=-1),

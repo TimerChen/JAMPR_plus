@@ -751,6 +751,7 @@ class RPDataset(Dataset):
 
         self.size = None
         self.data = None
+        self.load_ds()
 
     def seed(self, seed: int):
         if self.gen is not None:
@@ -763,23 +764,26 @@ class RPDataset(Dataset):
         #                                      limit=limit,
         #                                      cfg=self.cfg,
         #                                      **kwargs)
-        self.data = load_tsptw_instances(self.data_pth)
-        self.size = len(self.data)
+        self.all_data = load_tsptw_instances(self.data_pth)
+        self.data = self.all_data
+        self.size = len(self.all_data)
 
     def sample(self, sample_size: int = 10000, graph_size: int = 100, **kwargs):
         """Loads fixed dataset if filename was provided else
         samples a new dataset based on specified config."""
         if self.data_pth is not None:   # load data
             
-            if kwargs.get("custom_func") is None:
-                self.data = load_tsptw_instances(self.data_pth)
-            else:
-                self.data = kwargs.get("custom_func")(self.data_pth)
+            # if kwargs.get("custom_func") is None:
+            #     self.data = load_tsptw_instances(self.data_pth)
+            # else:
+            #     self.data = kwargs.get("custom_func")(self.data_pth)
 
-            print("len(self.data)", len(self.data), sample_size)
-            if sample_size < len(self.data):
-                idx = np.random.choice(len(self.data), sample_size, replace=False)
-                self.data = list(map(lambda ii: self.data[ii], idx.tolist()))
+            print("len(self.data)", len(self.all_data), sample_size)
+            if sample_size < len(self.all_data):
+                idx = np.random.choice(len(self.all_data), sample_size, replace=False)
+                self.data = list(map(lambda ii: self.all_data[ii], idx.tolist()))
+            else:
+                self.data = self.all_data
             # self.data = self.data[idx]
             
             # self.data = RPGenerator.load_dataset(filename=self.data_pth,

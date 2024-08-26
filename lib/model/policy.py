@@ -249,7 +249,8 @@ class ActionDist(Categorical):
         """Ignores -inf in calculation"""
         non_inf_idx = self.logits >= -10000
         p_log_p = self.logits[non_inf_idx] * self.probs[non_inf_idx]
-        return -p_log_p.sum(-1)
+        return -p_log_p.sum(-1) / self.logits.shape[0]
+        # return -p_log_p.sum(-1)
 
 
 # ============= #

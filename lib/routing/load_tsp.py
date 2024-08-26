@@ -39,7 +39,15 @@ def load_tsplib_instance(pth: str):
 
     return instance
 
-def load_tsptw_instances(pth: str) -> RPInstance:
+def load_tsptw_instances(pths) -> RPInstance:
+    if isinstance(pths, str):
+        pths = [pths]
+    ret = []
+    for p in pths:
+        ret.extend(load_tsptw_instances_one(p))
+    return ret
+
+def load_tsptw_instances_one(pth: str) -> RPInstance:
     """ Load an instance from jxchen's tsptw format
     """
     with open(pth, "rb") as f:
@@ -69,6 +77,9 @@ def load_tsptw_instances(pth: str) -> RPInstance:
 
     gsize = len(data[0])
     for i in range(len(dataset["data"])):
+        if len(dataset['seq'][i]) == 0:
+            continue
+
         org_service_horizon = tws[i][0, 1]
         coords = torch.tensor(data[i]) / lf[i]
         tw = torch.tensor(tws[i]) / org_service_horizon

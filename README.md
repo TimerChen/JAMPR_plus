@@ -30,13 +30,12 @@ conda env create -f requirements.yml
 
 
 ### Training
-Train the JAMPR model for type 1 instances with low TW frequency
+Train JAMPR for tsptw
 ```sh
-python run_jampr.py meta=train env=all_1_low
-```
-Train the JAMPR model for type 2 instances with high TW frequency
-```sh
-python run_jampr.py meta=train env=all_2_high
+# training
+python run_jampr.py meta=train env=tsptw
+# test
+python run_jampr.py meta=eval .....?
 ```
 
 ### LNS

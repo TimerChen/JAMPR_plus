@@ -66,24 +66,30 @@ class CheckpointCallback:
                 torch.save(self.runner.state_dict(epoch=epoch), add_pth)
 
         else:
+            m = f"{eval_metric: .6f}".lstrip()
+            fname = f"ep{epoch}_{self.prefix}_{str(self.metric_key)}={m}{self.FILE_EXTS}"
+            add_pth = os.path.join(self.save_dir, fname)
+            
+            logger.info(f"Saving new checkpoint to: {add_pth}")
+            torch.save(self.runner.state_dict(epoch=epoch), add_pth)
             # check metric
-            if eval_metric is None:
-                warn(f"Eval metric is None. No checkpoint saved.")
-            else:
-                is_better, idx = self._compare_metric(eval_metric)
-                if is_better:
-                    # delete worst checkpoint
-                    del_pth = self.top_k_checkpoints.pop(-1)['pth']
-                    if del_pth is not None and os.path.exists(del_pth):
-                        os.remove(del_pth)
-                    # add new checkpoint
-                    m = f"{eval_metric: .6f}".lstrip()
-                    fname = f"ep{epoch}_{self.prefix}_{str(self.metric_key)}={m}{self.FILE_EXTS}"
-                    add_pth = os.path.join(self.save_dir, fname)
-                    self.top_k_checkpoints.insert(idx, {'eval_metric': eval_metric, 'pth': add_pth})
-                    # save
-                    logger.info(f"Saving new checkpoint to: {add_pth}")
-                    torch.save(self.runner.state_dict(epoch=epoch), add_pth)
+            # if eval_metric is None:
+            #     warn(f"Eval metric is None. No checkpoint saved.")
+            # else:
+            #     is_better, idx = self._compare_metric(eval_metric)
+            #     if is_better:
+            #         # delete worst checkpoint
+            #         del_pth = self.top_k_checkpoints.pop(-1)['pth']
+            #         if del_pth is not None and os.path.exists(del_pth):
+            #             os.remove(del_pth)
+            #         # add new checkpoint
+            #         m = f"{eval_metric: .6f}".lstrip()
+            #         fname = f"ep{epoch}_{self.prefix}_{str(self.metric_key)}={m}{self.FILE_EXTS}"
+            #         add_pth = os.path.join(self.save_dir, fname)
+            #         self.top_k_checkpoints.insert(idx, {'eval_metric': eval_metric, 'pth': add_pth})
+            #         # save
+            #         logger.info(f"Saving new checkpoint to: {add_pth}")
+            #         torch.save(self.runner.state_dict(epoch=epoch), add_pth)
 
     def _compare_metric(self, eval_metric: float) -> Tuple[bool, int]:
         cur_best = np.array([cp['eval_metric'] for cp in self.top_k_checkpoints])
@@ -182,7 +188,7 @@ class MonitorCallback:
             checkpoint_cb: Optional[Callable] = None,
             is_last: bool = False,
     ) -> None:
-        if checkpoint_cb and epoch - self.last_save_step >= self.save_interval or is_last:
+        if checkpoint_cb and epoch - self.last_save_step > self.save_interval or is_last:
             self.last_save_step = epoch
             # call CheckpointCallback
             checkpoint_cb(epoch, self.eval_metric, is_last)
@@ -225,35 +231,37 @@ def update_path(cfg: DictConfig):
     """Correct the path to data files and checkpoints, since CWD is changed by hydra."""
     cwd = hydra.utils.get_original_cwd()
 
-    if cfg.train_ds_cfg is not None:
-        if cfg.train_ds_cfg.data_pth is not None:
-            cfg.train_ds_cfg.data_pth = os.path.normpath(
-                os.path.join(cwd, cfg.train_ds_cfg.data_pth)
-            )
-        if cfg.train_ds_cfg.stats_pth is not None:
-            cfg.train_ds_cfg.stats_pth = os.path.normpath(
-                os.path.join(cwd, cfg.train_ds_cfg.stats_pth)
-            )
+    # if cfg.train_ds_cfg is not None:
+    #     if cfg.train_ds_cfg.data_pth is not None:
+    #         print("???", cwd, cfg.train_ds_cfg.data_pth)
+    #         cfg.train_ds_cfg.data_pth = os.path.normpath(
+    #             os.path.join(cwd, cfg.train_ds_cfg.data_pth)
+    #         )
+    #         print("???", cwd, cfg.train_ds_cfg.data_pth)
+    #     if cfg.train_ds_cfg.stats_pth is not None:
+    #         cfg.train_ds_cfg.stats_pth = os.path.normpath(
+    #             os.path.join(cwd, cfg.train_ds_cfg.stats_pth)
+    #         )
 
-    if cfg.val_ds_cfg is not None:
-        if cfg.val_ds_cfg.data_pth is not None:
-            cfg.val_ds_cfg.data_pth = os.path.normpath(
-                os.path.join(cwd, cfg.val_ds_cfg.data_pth)
-            )
-        if cfg.val_ds_cfg.stats_pth is not None:
-            cfg.val_ds_cfg.stats_pth = os.path.normpath(
-                os.path.join(cwd, cfg.val_ds_cfg.stats_pth)
-            )
+    # if cfg.val_ds_cfg is not None:
+    #     if cfg.val_ds_cfg.data_pth is not None:
+    #         cfg.val_ds_cfg.data_pth = os.path.normpath(
+    #             os.path.join(cwd, cfg.val_ds_cfg.data_pth)
+    #         )
+    #     if cfg.val_ds_cfg.stats_pth is not None:
+    #         cfg.val_ds_cfg.stats_pth = os.path.normpath(
+    #             os.path.join(cwd, cfg.val_ds_cfg.stats_pth)
+    #         )
 
-    if cfg.test_ds_cfg is not None:
-        if cfg.test_ds_cfg.data_pth is not None:
-            cfg.test_ds_cfg.data_pth = os.path.normpath(
-                os.path.join(cwd, cfg.test_ds_cfg.data_pth)
-            )
-        if cfg.test_ds_cfg.stats_pth is not None:
-            cfg.test_ds_cfg.stats_pth = os.path.normpath(
-                os.path.join(cwd, cfg.test_ds_cfg.stats_pth)
-            )
+    # if cfg.test_ds_cfg is not None:
+    #     if cfg.test_ds_cfg.data_pth is not None:
+    #         cfg.test_ds_cfg.data_pth = os.path.normpath(
+    #             os.path.join(cwd, cfg.test_ds_cfg.data_pth)
+    #         )
+    #     if cfg.test_ds_cfg.stats_pth is not None:
+    #         cfg.test_ds_cfg.stats_pth = os.path.normpath(
+    #             os.path.join(cwd, cfg.test_ds_cfg.stats_pth)
+    #         )
 
     if cfg.checkpoint_load_path is not None:
         cfg.checkpoint_load_path = os.path.normpath(

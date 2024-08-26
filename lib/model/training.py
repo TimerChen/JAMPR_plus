@@ -55,10 +55,10 @@ def train_episode(data: List[RPInstance],
     # acts = torch.stack(actions, dim=0)
     # print("act: ", acts.shape, acts[:, 0])
 
-    costs = sum(costs)
-    # for i in range(len(costs)-2, -1, -1):
-    #     costs[i] = costs[i] + costs[i+1] * 0.98
-    # costs = torch.stack(costs, dim=1)
+    # costs = sum(costs)
+    for i in range(len(costs)-2, -1, -1):
+        costs[i] = costs[i] + costs[i+1] * 0.98
+    costs = torch.stack(costs, dim=1)
     logs = torch.stack(logs, dim=1)
     entropy = torch.stack(entropy, dim=0).mean() if entropy else None
     return costs, logs, entropy, info
@@ -244,8 +244,8 @@ def train_batch(batch: List,
 
     # Calculate loss
     # print("t: shapes", cost.shape, bl_val.shape, log_p.shape, len(batch))
-    # pg_loss = ((cost[:, :, None] - bl_val) * log_p).mean()
-    pg_loss = ((cost - bl_val) * log_p).mean()
+    pg_loss = ((cost[:, :, None] - bl_val) * log_p).mean()
+    # pg_loss = -((cost - bl_val) * log_p).mean()
     # print("t: cost{:.3f}, bl_val{:.3f}, adv{:.3f}".format(cost.mean(), bl_val.mean(), (cost-bl_val).mean()))
 
     # add entropy regularization (pos coefficient) / bonus (neg coefficient)
@@ -253,6 +253,7 @@ def train_batch(batch: List,
 
     # final loss to be minimized
     loss = pg_loss + bl_coeff*bl_loss + ent
+    print("loss: {:.3f}, pg_loss: {:.3f}, bl_loss: {:.3f}, ent: {:.3f}".format(loss, pg_loss, bl_loss, ent))
     # backward, gradient clipping and weight update
     optimizer.zero_grad()
     loss.backward()
@@ -346,6 +347,7 @@ def train(
         # Generate new training data for each epoch
         _t = time.time()
         data = train_dataset.sample(sample_size=cfg['train_dataset_size'], graph_size=cfg['graph_size'])
+        data = train_dataset
         t_sample += time.time() - _t
         # precompute baseline if necessary
         print("precompute baseline if necessary? ", type(baseline), )
